@@ -21,37 +21,23 @@ if CARPETA is None:
 F_MENSUAL = os.path.join(CARPETA, 'sp_mensual.csv')
 F_CREDITO = os.path.join(CARPETA, 'credito.csv')
 F_PRECIOS = os.path.join(CARPETA, 'precios_movil.csv')
-F_HOY = os.path.join(CARPETA, 'TIMON_hoy.html')
-VERSION = 'TIMON movil 1.1 (reglas TIMON-2, agresiva)'
+F_HOY = os.environ.get('TIMON_SALIDA') or os.path.join(CARPETA, 'TIMON_hoy.html')
+VERSION = 'TIMON movil 2.1 en GitHub (reglas TIMON-2, agresiva)'
 STOP = 0.25; COSTE = 0.001; INICIO = dt.date(2003, 11, 1)
 MOVE_VENT, MOVE_MIN, MOVE_PCT, MOVE_VIER = 1260, 253, 90, 2
 UA = {'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36'}
 
 # ----------------------------------------------------------------- descargas
-import http.cookiejar, time
-_JAR = http.cookiejar.CookieJar()
-_OPENER = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(_JAR))
-_COOKIE_OK = False
-CAB = {'User-Agent': UA['User-Agent'], 'Accept': 'text/html,application/json,text/csv,*/*;q=0.8', 'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'}
+import time
+CAB = {'User-Agent': UA['User-Agent'], 'Accept': 'application/json,text/csv,*/*'}
 
 def bajar(url, seg=60):
     req = urllib.request.Request(url, headers=CAB)
-    with _OPENER.open(req, timeout=seg) as r:
+    with urllib.request.urlopen(req, timeout=seg) as r:
         return r.read().decode('utf-8', 'replace')
-
-def cookie_yahoo():
-    """Yahoo corta (error 429) las peticiones sin su cookie: se pide una vez, como hace un navegador"""
-    global _COOKIE_OK
-    if _COOKIE_OK: return
-    for url in ('https://fc.yahoo.com', 'https://finance.yahoo.com'):
-        try: bajar(url, 30)
-        except Exception: pass          # fc.yahoo.com responde con error pero deja la cookie
-        if len(_JAR) > 0: break
-    _COOKIE_OK = True
 
 def serie_yahoo(sym):
     """igual que Descargar-Serie de TIMON: precio ajustado si existe; fecha = marca de tiempo + desfase de la bolsa"""
-    cookie_yahoo()
     p2 = int((dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=2)).timestamp())
     err = ''
     for h in ('query1', 'query2'):
@@ -73,20 +59,42 @@ def serie_yahoo(sym):
                 time.sleep(4 * (k + 1))
     raise RuntimeError('Yahoo no responde para %s: %s' % (sym, err))
 
+ERROR_NDX = ''
+
+def nivel_ndx(fecha_ult):
+    """nivel del Nasdaq-100 el ultimo dia. Si falta ese dia, usa la relacion indice/QQQ del ultimo dia comun (maximo 10 sesiones atras)"""
+    with open(F_PRECIOS, newline='') as f:
+        r = [p for p in list(csv.reader(f, delimiter=';'))[1:] if len(p) > 5 and p[5]]
+    if not r or r[-1][0] != fecha_ult: return None
+    q_ult = num(r[-1][5])
+    for p in reversed(r[-10:]):
+        if len(p) > 6 and p[6]: return num(p[6]) * q_ult / num(p[5])
+    return None
+
 def descargar_precios():
     s = {}
     for k in ('SPY', '^GSPC', '^IRX', '^MOVE', 'QQQ'):
         print('Descargando ' + k + ' de Yahoo...'); s[k] = serie_yahoo(k); time.sleep(1)
+    viejo_ndx = {}
+    if os.path.exists(F_PRECIOS):
+        with open(F_PRECIOS, newline='') as f:
+            for p in list(csv.reader(f, delimiter=';'))[1:]:
+                if len(p) > 6 and p[6]: viejo_ndx[p[0]] = num(p[6])
+    global ERROR_NDX
+    try:
+        time.sleep(3); print('Descargando ^NDX de Yahoo...'); s['^NDX'] = serie_yahoo('^NDX')
+    except Exception as e:
+        ERROR_NDX = str(e)[:120]; print('AVISO ^NDX: ' + ERROR_NDX); s['^NDX'] = viejo_ndx
     ahora = dt.datetime.now(dt.timezone.utc); hoy = ahora.strftime('%Y-%m-%d')
     cerrado = ahora.hour + ahora.minute / 60.0 >= 21.5        # 22:30 en Madrid (invierno): la sesion de hoy ya ha cerrado
     filas = []
     for d in sorted(s['SPY']):
         if d > hoy or (d == hoy and not cerrado): continue
         if d not in s['^GSPC']: continue
-        filas.append([d, s['SPY'][d], s['^GSPC'][d], s['^IRX'].get(d), s['^MOVE'].get(d), s['QQQ'].get(d)])
+        filas.append([d, s['SPY'][d], s['^GSPC'][d], s['^IRX'].get(d), s['^MOVE'].get(d), s['QQQ'].get(d), s['^NDX'].get(d)])
     if len(filas) < 5000: raise RuntimeError('Descarga incompleta de Yahoo (pocas sesiones).')
     with open(F_PRECIOS, 'w', newline='') as f:
-        w = csv.writer(f, delimiter=';'); w.writerow(['fecha', 'spy', 'sp500', 'irx', 'move', 'qqq'])
+        w = csv.writer(f, delimiter=';'); w.writerow(['fecha', 'spy', 'sp500', 'irx', 'move', 'qqq', 'ndx'])
         for r in filas: w.writerow([x if x is not None else '' for x in r])
 
 def descargar_credito():
@@ -383,10 +391,9 @@ def main(descargar=True):
     n = len(D)
     res = [('S&amp;P 500', G[n - 1], Ss, orden(Ss, tm), 'SPY')]
     # Nasdaq-100: nivel del indice = QQQ x (indice/QQQ) del ultimo cierre (se descarga ^NDX solo para esta conversion)
-    try: ndx = serie_yahoo('^NDX'); kq = D[-1].strftime('%Y-%m-%d'); ixq = ndx.get(kq)
-    except Exception: ixq = None
+    ixq = nivel_ndx(D[-1].strftime('%Y-%m-%d'))
     res.append(('Nasdaq-100', ixq, Sq, orden(Sq, tm), 'QQQ'))
-    if not ixq: avisos.append('Sin dato del indice Nasdaq-100: la alarma del Nasdaq se muestra en precio del QQQ.')
+    if not ixq: avisos.append('Sin dato del indice Nasdaq-100' + (' (' + ERROR_NDX + ')' if ERROR_NDX else '') + ': la alarma del Nasdaq se muestra en precio del QQQ.')
     pagina(D, G, None, None, res, avisos)
     import html as _h, re as _re
     print('')
