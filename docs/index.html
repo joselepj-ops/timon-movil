@@ -1,1 +1,265 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>TIMON hoy</title><style>body{font-family:Roboto,Arial,sans-serif;margin:14px;color:#222;font-size:17px}h1{font-size:22px;margin:0 0 4px 0}.f{color:#666;font-size:14px;margin-bottom:12px}.caja{border:3px solid #999;border-radius:12px;padding:12px;margin:12px 0}.nom{font-size:15px;color:#555}.ord{font-size:30px;font-weight:bold;margin:4px 0}.cu{font-size:16px}.al{margin-top:8px;font-size:15px;background:#fff3cd;padding:6px;border-radius:6px}.aviso{background:#fde2e2;color:#7a0010;padding:8px;border-radius:6px;margin:8px 0;font-size:15px}.pie{color:#777;font-size:13px;margin-top:16px}</style></head><body><h1>TIM&Oacute;N &middot; Hoy</h1><div class="f">Datos hasta el cierre del viernes 20/11/2026</div><div class="aviso">No se han podido descargar precios nuevos de Yahoo (Yahoo no responde para SPY: HTTP Error 429: Too Many Requests). Se usan los &uacute;ltimos guardados.</div><div class="aviso">Sin dato del indice Nasdaq-100: la alarma del Nasdaq se muestra en precio del QQQ.</div><div class="caja" style="border-color:#0a7a2f"><div class="nom">S&amp;P 500 (fondo)</div><div class="ord" style="color:#0a7a2f">&#128994; MANTENER</div><div class="cu">No hagas nada.</div><div class="al">Alarma: si el <b>S&amp;P 500</b> cierra por debajo de <b>5.854</b> puntos, vender (stop). Ahora est&aacute; un 11,5 % por debajo de su m&aacute;ximo.</div></div><div class="caja" style="border-color:#0a7a2f"><div class="nom">Nasdaq-100 (ETF)</div><div class="ord" style="color:#0a7a2f">&#128994; MANTENER</div><div class="cu">No hagas nada.</div><div class="al">Alarma: si el <b>QQQ</b> cierra por debajo de <b>569,74</b>, vender (stop). Ahora est&aacute; un 19,9 % por debajo de su m&aacute;ximo.</div></div><div class="pie">Mira TIM&Oacute;N cada viernes por la noche y el &uacute;ltimo d&iacute;a de cada mes.<br>Estrategia agresiva (R2 o MOVE + entradas), stop 25 % y comod&iacute;n K5: las mismas reglas que TIM&Oacute;N en el PC.<br>TIMON movil 2.1 en GitHub (reglas TIMON-2, agresiva)</div></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a3d62">
+<title>TIMÓN</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icono.svg">
+<style>
+body{font-family:Roboto,Arial,sans-serif;margin:0;color:#222;font-size:17px;background:#f6f7f9}
+main{max-width:560px;margin:0 auto;padding:12px 14px 30px}
+h1{font-size:22px;margin:4px 0}
+h2{font-size:18px;margin:18px 0 6px}
+.f{color:#555;font-size:14px}
+.caja{background:#fff;border:3px solid #999;border-radius:12px;padding:12px;margin:12px 0}
+.nom{font-size:15px;color:#555}
+.ord{font-size:30px;font-weight:bold;margin:4px 0}
+.cu{font-size:16px}
+.al{margin-top:8px;font-size:15px;background:#fff3cd;padding:6px;border-radius:6px}
+.aviso{background:#fde2e2;color:#7a0010;padding:8px;border-radius:8px;margin:8px 0;font-size:15px}
+.amar{background:#fff3cd;color:#5c4400;padding:8px;border-radius:8px;margin:8px 0;font-size:15px}
+.info{background:#e8f0f8;color:#0a3d62;padding:8px;border-radius:8px;margin:8px 0;font-size:15px}
+.pide{background:#fff;border:3px solid #b00020;border-radius:12px;padding:12px;margin:12px 0}
+.fila{display:flex;align-items:center;justify-content:space-between;margin:6px 0}
+.fila label{font-size:16px}
+input{font-size:18px;width:110px;padding:6px;border:1px solid #888;border-radius:6px;text-align:right}
+button{font-size:17px;padding:10px 14px;border-radius:8px;border:0;background:#0a3d62;color:#fff;margin:6px 6px 0 0}
+button.sec{background:#e3e7ec;color:#222}
+table{border-collapse:collapse;width:100%;font-size:15px;background:#fff}
+td{border-bottom:1px solid #e3e3e3;padding:4px 6px}
+td.v{text-align:right}
+.mio{color:#0a3d62;font-weight:bold}
+.ob{color:#b00020;font-weight:bold}
+textarea{width:100%;height:90px;font-size:13px}
+.pie{color:#777;font-size:13px;margin-top:18px}
+a{color:#0a3d62}
+</style>
+</head>
+<body>
+<main>
+<h1>TIMÓN · Hoy</h1>
+<div class="f" id="fecha">Cargando datos…</div>
+<div id="avisos"></div>
+<div id="pide"></div>
+<div id="senales"></div>
+<div id="fechas"></div>
+
+<h2>Mis MOVE</h2>
+<div class="f">Últimas 8 semanas. <span class="mio">En azul</span> los que has metido tú; el resto vienen del PC. Toca una cifra para corregirla.</div>
+<div id="lista"></div>
+<div>
+<button class="sec" onclick="copiar()">Copiar mis MOVE</button>
+<button class="sec" onclick="restaurar()">Restaurar copia</button>
+</div>
+<div id="copia"></div>
+
+<div class="pie" id="pie"></div>
+</main>
+<script src="motor.js"></script>
+<script>
+var CLAVE = 'timon_move_v1';
+var BASE = null;
+var INVESTING = 'https://uk.investing.com/indices/ice-bofaml-move';
+var DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+
+function mios() { try { return JSON.parse(localStorage.getItem(CLAVE) || '{}'); } catch (e) { return {}; } }
+function guardarMios(o) { try { localStorage.setItem(CLAVE, JSON.stringify(o)); return true; } catch (e) { alert('No se ha podido guardar en el móvil: ' + e); return false; } }
+function num(t) { t = String(t || '').trim().replace(/\s/g, ''); if (!t) return null; if (/^[xX-]$/.test(t)) return -1; if (t.indexOf(',') >= 0) t = t.replace(/\./g, '').replace(',', '.'); var v = parseFloat(t); return isFinite(v) && v > 0 ? v : NaN; }
+function es(x, d) { var s = Math.abs(x).toFixed(d || 0).split('.'); s[0] = s[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.'); return (x < 0 ? '-' : '') + s.join(','); }
+function dm(n) { var s = TM.ds(n); return s.slice(8, 10) + '/' + s.slice(5, 7); }
+function fdiaN(n) { return DIAS[TM.wd(n)] + ' ' + dm(n); }
+function fdia(f) { return fdiaN(TM.dn(f)); }
+function leer(t) { return t.replace(/\r/g, '').trim().split('\n').slice(1).map(function (l) { return l.split(','); }); }
+function hoyN() { var h = new Date(); return TM.dn(h.getFullYear() + '-' + ('0' + (h.getMonth() + 1)).slice(-2) + '-' + ('0' + h.getDate()).slice(-2)); }
+function laborableSig(n) { var x = n + 1; while (TM.wd(x) >= 5) x++; return x; }
+function viernesDe(n) { return n - TM.wd(n) + 4; }
+
+async function cargar() {
+  var q = '?t=' + Date.now();
+  var r = await Promise.all(['precios.csv', 'sp_mensual.csv', 'credito.csv', 'estado.json'].map(function (f) {
+    return fetch('datos/' + f + q, { cache: 'no-store' }).then(function (x) { if (!x.ok && f != 'estado.json') throw new Error(f + ': ' + x.status); return x.ok ? x.text() : '{}'; });
+  }));
+  var est = {}; try { est = JSON.parse(r[3]); } catch (e) {}
+  BASE = { filas: leer(r[0]).filter(function (p) { return p[1] && p[5]; }),
+    mensual: leer(r[1]).map(function (p) { return [[+p[0].slice(0, 4), +p[0].slice(5, 7)], +p[1]]; }),
+    cred: leer(r[2]).filter(function (p) { return p[1] && p[2]; }).map(function (p) { return [p[0], +p[1] - +p[2]]; }),
+    est: est };
+  BASE.filas.forEach(function (p) { if (!p[7]) p[7] = 'pc'; });
+}
+
+// MOVE de un dia: manda el del PC; si no hay, el tuyo (-1 = sin dato)
+function moveDe(p, m) { if (p[4]) return +p[4]; var u = m[p[0]]; return u != null && u > 0 ? u : null; }
+function tieneMove(p, m) { return !!p[4] || m[p[0]] != null; }
+
+// semanas: indice de la ultima sesion de cada semana y si la semana esta cerrada
+function semanas() {
+  var F = BASE.filas, n = F.length, out = {};
+  for (var i = 0; i < n; i++) {
+    var d = TM.dn(F[i][0]), s = d - TM.wd(d);
+    out[s] = { fin: i, cerrada: i < n - 1 || TM.wd(d) == 4 };
+  }
+  return out;
+}
+
+// dias de FRED sin MOVE del PC ni tuyo, agrupados por semana; el ultimo dia de una semana cerrada es obligatorio
+function pendientes() {
+  var F = BASE.filas, m = mios(), S = semanas(), res = [], falta = 0;
+  F.forEach(function (p, i) {
+    if (p[7] != 'fred' || tieneMove(p, m)) return;
+    var d = TM.dn(p[0]), w = S[d - TM.wd(d)];
+    if (tieneMove(F[w.fin], m)) return;            // la semana ya tiene su cierre semanal
+    var ob = w.cerrada && w.fin == i;
+    if (ob) falta++;
+    res.push({ f: p[0], ob: ob });
+  });
+  return { dias: res, falta: falta };
+}
+
+function calcular() {
+  var m = mios(), d = { D: [], G: [], N: [], IRX: [], MV: [], SPY: [], Q: [] }, ui = 0, uq = null;
+  BASE.filas.forEach(function (p) {
+    d.D.push(TM.dn(p[0])); d.G.push(+p[1]); d.N.push(p[2] ? +p[2] : null);
+    if (p[3]) ui = +p[3]; d.IRX.push(ui);
+    d.MV.push(moveDe(p, m));
+    d.SPY.push(+p[5]); if (p[6]) uq = +p[6]; d.Q.push(uq);
+  });
+  return { d: d, r: TM.calcular(d, BASE.mensual, BASE.cred, hoyN()) };
+}
+
+function cuandoTxt(sig) {
+  var h = hoyN();
+  if (h < sig) return 'El ' + fdiaN(sig) + ', al cierre (22:00).';
+  if (h == sig) return '<b>HOY</b>, ' + fdiaN(sig) + ', al cierre (22:00).';
+  return '<b>Debía ejecutarse el ' + fdiaN(sig) + '</b>: hazlo hoy al cierre.';
+}
+
+function pintar() {
+  var pen = pendientes(), C = calcular(), d = C.d, r = C.r, n = d.D.length, F = BASE.filas, ultN = d.D[n - 1], m = mios(), e = BASE.est;
+  var ultPc = '', i;
+  for (i = n - 1; i >= 0; i--) if (F[i][7] == 'pc') { ultPc = F[i][0]; break; }
+  document.getElementById('fecha').innerHTML = 'Datos hasta el cierre del ' + fdiaN(ultN) + '/' + TM.ds(ultN).slice(0, 4) +
+    '<br>PC (Yahoo) hasta el ' + fdia(ultPc) + (F[n - 1][7] == 'fred' ? ' · FRED hasta el ' + fdiaN(ultN) : '');
+  // avisos de la app
+  var av = '';
+  if (pen.falta) av += '<div class="aviso"><b>Falta el MOVE del cierre semanal (' + pen.falta + ' semana' + (pen.falta > 1 ? 's' : '') + ').</b> Hasta que lo metas, la señal de MOVE puede no ser correcta. R2, stop y K5 sí están al día.</div>';
+  if (e.falta) av += '<div class="aviso">Faltan los datos del ' + fdia(e.esperado) + '. Puede ser festivo en EE. UU. o que FRED no los haya publicado aún: se vuelve a mirar a las 19:30.</div>';
+  if (hoyN() - ultN > 5) av += '<div class="aviso">Los datos tienen más de 5 días. Revisa Actions en GitHub.</div>';
+  if (ultPc && hoyN() - TM.dn(ultPc) > 7) av += '<div class="amar">Datos del PC sin actualizar desde el ' + fdia(ultPc) + ': TIMÓN usa FRED y tus MOVE. Al abrir TIMÓN en el PC se ponen al día solos.</div>';
+  if (r.ret || r.R.pendienteMA200) av += '<div class="aviso">R2 ha dado salida pero el S&amp;P 500 está por encima de su media de 200 sesiones: la salida queda pendiente y se revisa cada viernes.</div>';
+  var dif = [];
+  F.forEach(function (p) { var u = m[p[0]]; if (p[4] && u != null && u > 0 && Math.abs(u / +p[4] - 1) > 0.01) dif.push(fdia(p[0]) + ': tuyo ' + es(u, 2) + ', PC ' + es(+p[4], 2)); });
+  if (dif.length) av += '<div class="amar"><b>Tus MOVE difieren más de un 1 % de los del PC</b> (manda el del PC): ' + dif.slice(-5).join(' · ') + '</div>';
+  (e.avisos || []).forEach(function (a) { av += '<div class="amar">' + a + '</div>'; });
+  document.getElementById('avisos').innerHTML = av;
+  // casillas de MOVE
+  var pide = '';
+  if (pen.dias.length) {
+    pide = '<div class="pide"><b>Mete los cierres de MOVE</b><div class="f">Basta con el del <b>último día de cada semana</b> (normalmente el viernes); los demás son opcionales. Sácalos de <a href="' + INVESTING + '" target="_blank">Investing.com → MOVE</a>, pestaña «Historical Data», columna «Price». Si un día no hay dato (festivo de bonos), escribe <b>x</b>.</div>';
+    pen.dias.forEach(function (x) { pide += '<div class="fila"><label' + (x.ob ? ' class="ob"' : '') + '>' + fdia(x.f) + (x.ob ? ' (semanal)' : ' (opcional)') + '</label><input inputmode="decimal" id="mv_' + x.f + '" placeholder="0,00"></div>'; });
+    pide += '<button onclick="guardarFaltan()">Guardar y calcular</button></div>';
+  }
+  document.getElementById('pide').innerHTML = pide;
+  // señales
+  var sig = laborableSig(ultN), html = '';
+  [['S&amp;P 500 (fondo)', 'S&amp;P 500', r.Ss, r.oS, d.G[n - 1]], ['Nasdaq-100 (ETF)', 'Nasdaq-100', r.Sq, r.oQ, d.N[n - 1]]].forEach(function (x) {
+    var S = x[2], o = x[3], ico, txt, col, cuando;
+    if (o && o[0] == 'VENDER') { ico = '🔴'; txt = 'VENDER'; col = '#b00020'; cuando = cuandoTxt(sig) + ' Motivo: ' + o[1] + '.'; }
+    else if (o && o[0] == 'COMPRAR') { ico = '🔵'; txt = 'COMPRAR'; col = '#1565c0'; cuando = cuandoTxt(sig) + ' Motivo: ' + o[1] + '.'; }
+    else if (S.held == 1) { ico = '🟢'; txt = 'MANTENER'; col = '#0a7a2f'; cuando = 'No hagas nada.'; }
+    else { ico = '⚪'; txt = 'ESPERAR FUERA'; col = '#666'; cuando = 'Sigue en liquidez.' + (S.out ? ' Fuera por el stop: vuelve con el comodín K5.' : ''); }
+    var al = '';
+    if (S.held == 1 && !S.pe && !o && x[4]) {
+      var nivel = x[4] * (1 - TM.STOP) * S.pk / S.c;
+      al = '<div class="al">Alarma: si el <b>' + x[1] + '</b> cierra por debajo de <b>' + es(nivel) + '</b> puntos, vender (stop). Ahora está un ' + es(-S.dd, 1) + ' % por debajo de su máximo.</div>';
+    }
+    html += '<div class="caja" style="border-color:' + col + '"><div class="nom">' + x[0] + '</div><div class="ord" style="color:' + col + '">' + ico + ' ' + txt + '</div><div class="cu">' + cuando + '</div>' + al + '</div>';
+  });
+  document.getElementById('senales').innerHTML = html;
+  // proximas fechas de señal
+  var fe = '<h2>Próximas fechas de señal</h2>', vie = viernesDe(TM.wd(ultN) == 4 ? ultN + 7 : ultN);
+  fe += '<div class="info">MOVE y salvaguarda de R2: cierre del ' + fdiaN(vie) + ' (revisión del fin de semana).</div>';
+  var ds = TM.ds(ultN), y = +ds.slice(0, 4), mo = +ds.slice(5, 7);
+  function finMesLab(y, mo) { var x = TM.dn((mo == 12 ? y + 1 : y) + '-' + ('0' + (mo % 12 + 1)).slice(-2) + '-01') - 1; while (TM.wd(x) >= 5) x--; return x; }
+  var fm = finMesLab(y, mo); if (fm <= ultN) fm = finMesLab(mo == 12 ? y + 1 : y, mo % 12 + 1);
+  var entre = TM.wd(fm) != 4 && fm - ultN <= 7;
+  fe += '<div class="' + (entre ? 'amar' : 'info') + '">' + (entre ? '<b>Esta semana, entre semana:</b> ' : '') + 'R2 (fin de mes) decide con el cierre del ' + fdiaN(fm) + '. Si hay orden, se ejecuta el ' + fdiaN(laborableSig(fm)) + ' al cierre.' + (entre ? ' Abre TIMÓN ese día antes de las 22:00.' : '') + '</div>';
+  if ((r.Ss.out && r.Ss.credmode) || (r.Sq.out && r.Sq.credmode)) {
+    var p1 = TM.dn(ds.slice(0, 8) + '01'), c = 0, q5 = p1; while (true) { if (TM.wd(q5) < 5 && ++c == 5) break; q5++; }
+    if (q5 <= ultN) { p1 = TM.dn((mo == 12 ? y + 1 : y) + '-' + ('0' + (mo % 12 + 1)).slice(-2) + '-01'); c = 0; q5 = p1; while (true) { if (TM.wd(q5) < 5 && ++c == 5) break; q5++; } }
+    fe += '<div class="amar"><b>Fuera por el stop esperando al crédito:</b> el crédito se revisa en la 5.ª sesión del mes, el ' + fdiaN(q5) + '.</div>';
+  }
+  document.getElementById('fechas').innerHTML = fe;
+  // lista de MOVE (8 semanas = 40 sesiones)
+  var t = '<table>', S = semanas();
+  F.slice(-40).reverse().forEach(function (p) {
+    var v = moveDe(p, m), mio = !p[4] && m[p[0]] != null;
+    var w = S[TM.dn(p[0]) - TM.wd(TM.dn(p[0]))], semOk = tieneMove(F[w.fin], m);
+    var txt = v != null ? es(v, 2) : (p[7] == 'pc' || (m[p[0]] != null) ? 'sin dato (bonos cerrados)' : (semOk ? 'no metido (opcional)' : '— falta —'));
+    t += '<tr><td>' + fdia(p[0]) + '/' + p[0].slice(2, 4) + '</td><td class="v ' + (mio ? 'mio' : '') + '" onclick="corregir(\'' + p[0] + '\')">' + txt + '</td></tr>';
+  });
+  document.getElementById('lista').innerHTML = t + '</table>';
+  document.getElementById('pie').innerHTML = 'Revisión: el fin de semana, y entre semana solo en las fechas marcadas arriba o si el stop se acerca.<br>Estrategia agresiva (R2 o MOVE + entradas), stop 25 % y comodín K5: las reglas de TIMÓN.<br>Datos: PC (Yahoo) cuando abres TIMÓN en el PC; si no, FRED (S&amp;P 500, Nasdaq-100, tipo) y tus MOVE. Crédito: FRED.' + (e.actualizado ? '<br>Última lectura: ' + e.actualizado + '.' : '') + '<br>TIMÓN móvil 3.1';
+}
+
+function previo(f) {
+  var m = mios(), v = null;
+  BASE.filas.forEach(function (p) { if (p[0] < f) { var x = moveDe(p, m); if (x != null) v = x; } });
+  return v;
+}
+
+function comprobar(f, v, ant) {
+  if (isNaN(v)) { alert('«' + fdia(f) + '»: no es un número válido.'); return false; }
+  if (v < 0) return true;
+  if (ant != null && Math.abs(v / ant - 1) > 0.30)
+    return confirm('¿Seguro? MOVE del ' + fdia(f) + ': ' + es(v, 2) + ' frente a ' + es(ant, 2) + ' el día anterior (' + es((v / ant - 1) * 100, 0) + ' %).');
+  return true;
+}
+
+function guardarFaltan() {
+  var m = mios(), pen = pendientes().dias, alguno = false;
+  for (var i = 0; i < pen.length; i++) {
+    var f = pen[i].f, v = num(document.getElementById('mv_' + f).value);
+    if (v === null) continue;
+    if (!comprobar(f, v, previo(f))) return;
+    m[f] = v; guardarMios(m); alguno = true;
+  }
+  if (!alguno) { alert('No has escrito ninguna cifra.'); return; }
+  pintar();
+}
+
+function corregir(f) {
+  var m = mios(), p = BASE.filas.find(function (x) { return x[0] == f; });
+  if (p[4]) { alert('El MOVE del ' + fdia(f) + ' viene del PC (' + es(+p[4], 2) + ') y es el que manda. No se puede cambiar aquí.'); return; }
+  var act = moveDe(p, m);
+  var t = prompt('MOVE del ' + fdia(f) + (act != null ? ' (ahora ' + es(act, 2) + ')' : '') + '.\nEscribe la cifra correcta (x si no hay dato). Deja vacío y pulsa Aceptar para borrar tu dato.', act != null ? String(act).replace('.', ',') : '');
+  if (t === null) return;
+  var v = num(t);
+  if (v === null) { if (m[f] != null) { delete m[f]; guardarMios(m); pintar(); } return; }
+  if (!comprobar(f, v, previo(f))) return;
+  m[f] = v; if (guardarMios(m)) pintar();
+}
+
+function copiar() {
+  var m = mios(), t = Object.keys(m).sort().map(function (k) { return k + '=' + (m[k] > 0 ? String(m[k]).replace('.', ',') : 'x'); }).join('; ');
+  document.getElementById('copia').innerHTML = '<div class="f">Copia este texto y guárdalo (WhatsApp, notas…):</div><textarea readonly>' + (t || '(no has metido ningún MOVE)') + '</textarea>';
+  try { navigator.clipboard.writeText(t); } catch (e) {}
+}
+
+function restaurar() {
+  var t = prompt('Pega aquí la copia de tus MOVE:');
+  if (!t) return;
+  var m = mios(), n = 0;
+  t.split(';').forEach(function (x) { var p = x.split('='); if (p.length == 2 && /^\d{4}-\d\d-\d\d$/.test(p[0].trim())) { var v = num(p[1]); if (v) { m[p[0].trim()] = v; n++; } } });
+  if (!n) { alert('No he encontrado datos válidos en el texto.'); return; }
+  if (guardarMios(m)) { alert('Restaurados ' + n + ' cierres de MOVE.'); pintar(); }
+}
+
+cargar().then(pintar).catch(function (e) {
+  document.getElementById('fecha').textContent = '';
+  document.getElementById('avisos').innerHTML = '<div class="aviso">No se han podido cargar los datos (' + e.message + '). Comprueba la conexión y vuelve a abrir.</div>';
+});
+</script>
+</body>
+</html>
