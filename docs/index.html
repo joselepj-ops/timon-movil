@@ -47,7 +47,7 @@ a{color:#0a3d62}
 <div id="fechas"></div>
 
 <h2>Mis MOVE</h2>
-<div class="f">Últimas 8 semanas. <span class="mio">En azul</span> los que has metido tú; el resto vienen del PC. Toca una cifra para corregirla.</div>
+<div class="f">Últimas 8 semanas. <span class="mio">En azul</span> los que has metido tú; el resto vienen del PC o de EODHD. Toca una cifra para corregirla.</div>
 <div id="lista"></div>
 <div>
 <button class="sec" onclick="copiar()">Copiar mis MOVE</button>
@@ -78,18 +78,20 @@ function viernesDe(n) { return n - TM.wd(n) + 4; }
 
 async function cargar() {
   var q = '?t=' + Date.now();
-  var r = await Promise.all(['precios.csv', 'sp_mensual.csv', 'credito.csv', 'estado.json'].map(function (f) {
-    return fetch('datos/' + f + q, { cache: 'no-store' }).then(function (x) { if (!x.ok && f != 'estado.json') throw new Error(f + ': ' + x.status); return x.ok ? x.text() : '{}'; });
+  var r = await Promise.all(['precios.csv', 'sp_mensual.csv', 'credito.csv', 'estado.json', 'control.json'].map(function (f) {
+    var opc = f == 'estado.json' || f == 'control.json';
+    return fetch('datos/' + f + q, { cache: 'no-store' }).then(function (x) { if (!x.ok && !opc) throw new Error(f + ': ' + x.status); return x.ok ? x.text() : '{}'; }).catch(function (e) { if (opc) return '{}'; throw e; });
   }));
   var est = {}; try { est = JSON.parse(r[3]); } catch (e) {}
+  var ctl = {}; try { ctl = JSON.parse(r[4]); } catch (e) {}
   BASE = { filas: leer(r[0]).filter(function (p) { return p[1] && p[5]; }),
     mensual: leer(r[1]).map(function (p) { return [[+p[0].slice(0, 4), +p[0].slice(5, 7)], +p[1]]; }),
     cred: leer(r[2]).filter(function (p) { return p[1] && p[2]; }).map(function (p) { return [p[0], +p[1] - +p[2]]; }),
-    est: est };
+    est: est, ctl: ctl };
   BASE.filas.forEach(function (p) { if (!p[7]) p[7] = 'pc'; });
 }
 
-// MOVE de un dia: manda el del PC; si no hay, el tuyo (-1 = sin dato)
+// MOVE de un dia: manda el del PC; luego el de EODHD; si no hay, el tuyo (-1 = sin dato)
 function moveDe(p, m) { if (p[4]) return +p[4]; var u = m[p[0]]; return u != null && u > 0 ? u : null; }
 function tieneMove(p, m) { return !!p[4] || m[p[0]] != null; }
 
@@ -103,11 +105,11 @@ function semanas() {
   return out;
 }
 
-// dias de FRED sin MOVE del PC ni tuyo, agrupados por semana; el ultimo dia de una semana cerrada es obligatorio
+// dias sin datos del PC (EODHD o FRED) sin MOVE descargado ni tuyo, agrupados por semana; el ultimo dia de una semana cerrada es obligatorio
 function pendientes() {
   var F = BASE.filas, m = mios(), S = semanas(), res = [], falta = 0;
   F.forEach(function (p, i) {
-    if (p[7] != 'fred' || tieneMove(p, m)) return;
+    if (p[7] == 'pc' || tieneMove(p, m)) return;
     var d = TM.dn(p[0]), w = S[d - TM.wd(d)];
     if (tieneMove(F[w.fin], m)) return;            // la semana ya tiene su cierre semanal
     var ob = w.cerrada && w.fin == i;
@@ -137,20 +139,27 @@ function cuandoTxt(sig) {
 
 function pintar() {
   var pen = pendientes(), C = calcular(), d = C.d, r = C.r, n = d.D.length, F = BASE.filas, ultN = d.D[n - 1], m = mios(), e = BASE.est;
-  var ultPc = '', i;
-  for (i = n - 1; i >= 0; i--) if (F[i][7] == 'pc') { ultPc = F[i][0]; break; }
+  var ultPc = '', ultF = {}, i;
+  for (i = 0; i < n; i++) ultF[F[i][7]] = F[i][0];
+  ultPc = ultF.pc || '';
   document.getElementById('fecha').innerHTML = 'Datos hasta el cierre del ' + fdiaN(ultN) + '/' + TM.ds(ultN).slice(0, 4) +
-    '<br>PC (Yahoo) hasta el ' + fdia(ultPc) + (F[n - 1][7] == 'fred' ? ' · FRED hasta el ' + fdiaN(ultN) : '');
+    '<br>PC (Yahoo) hasta el ' + fdia(ultPc) + (ultF.eodhd && ultF.eodhd > ultPc ? ' · EODHD hasta el ' + fdia(ultF.eodhd) : '') + (ultF.fred && ultF.fred > ultPc ? ' · FRED hasta el ' + fdia(ultF.fred) : '');
   // avisos de la app
   var av = '';
   if (pen.falta) av += '<div class="aviso"><b>Falta el MOVE del cierre semanal (' + pen.falta + ' semana' + (pen.falta > 1 ? 's' : '') + ').</b> Hasta que lo metas, la señal de MOVE puede no ser correcta. R2, stop y K5 sí están al día.</div>';
-  if (e.falta) av += '<div class="aviso">Faltan los datos del ' + fdia(e.esperado) + '. Puede ser festivo en EE. UU. o que FRED no los haya publicado aún: se vuelve a mirar a las 19:30.</div>';
+  if (e.falta) av += '<div class="aviso">Faltan los datos del ' + fdia(e.esperado) + '. Puede ser festivo en EE. UU. o que EODHD y FRED no los hayan publicado aún: se vuelve a mirar a las 19:30.</div>';
   if (hoyN() - ultN > 5) av += '<div class="aviso">Los datos tienen más de 5 días. Revisa Actions en GitHub.</div>';
-  if (ultPc && hoyN() - TM.dn(ultPc) > 7) av += '<div class="amar">Datos del PC sin actualizar desde el ' + fdia(ultPc) + ': TIMÓN usa FRED y tus MOVE. Al abrir TIMÓN en el PC se ponen al día solos.</div>';
+  if (ultPc && hoyN() - TM.dn(ultPc) > 7) av += '<div class="amar">Datos del PC sin actualizar desde el ' + fdia(ultPc) + ': TIMÓN usa EODHD (o FRED) y, si falta, tu MOVE. Al abrir TIMÓN en el PC se ponen al día solos.</div>';
   if (r.ret || r.R.pendienteMA200) av += '<div class="aviso">R2 ha dado salida pero el S&amp;P 500 está por encima de su media de 200 sesiones: la salida queda pendiente y se revisa cada viernes.</div>';
   var dif = [];
-  F.forEach(function (p) { var u = m[p[0]]; if (p[4] && u != null && u > 0 && Math.abs(u / +p[4] - 1) > 0.01) dif.push(fdia(p[0]) + ': tuyo ' + es(u, 2) + ', PC ' + es(+p[4], 2)); });
-  if (dif.length) av += '<div class="amar"><b>Tus MOVE difieren más de un 1 % de los del PC</b> (manda el del PC): ' + dif.slice(-5).join(' · ') + '</div>';
+  F.forEach(function (p) { var u = m[p[0]]; if (p[4] && u != null && u > 0 && Math.abs(u / +p[4] - 1) > 0.01) dif.push(fdia(p[0]) + ': tuyo ' + es(u, 2) + ', ' + (p[7] == 'pc' ? 'PC' : 'EODHD') + ' ' + es(+p[4], 2)); });
+  if (dif.length) av += '<div class="amar"><b>Tus MOVE difieren más de un 1 % de los descargados</b> (manda el descargado: PC o EODHD): ' + dif.slice(-5).join(' · ') + '</div>';
+  var ctl = BASE.ctl;
+  if (ctl && ctl.mal && ctl.comprobado && hoyN() - TM.dn(ctl.comprobado.slice(0, 10)) <= 7) {
+    var mx = [], nom = { sp500: 'S&amp;P 500', ndx: 'Nasdaq-100', spy: 'SPY', qqq: 'QQQ', move: 'MOVE' };
+    for (var kk in ctl.max_pct) if (ctl.max_pct[kk] != null && ctl.max_pct[kk] > 0.05) mx.push(nom[kk] + ' ' + es(ctl.max_pct[kk], 3) + ' %');
+    av += '<div class="amar"><b>Control EODHD frente al PC:</b> diferencias de más del 0,05 % (' + mx.join(', ') + ') en los días ' + ctl.dias.map(fdia).join(', ') + '. Ya se usan los datos del PC; avisa si se repite.</div>';
+  }
   (e.avisos || []).forEach(function (a) { av += '<div class="amar">' + a + '</div>'; });
   document.getElementById('avisos').innerHTML = av;
   // casillas de MOVE
@@ -163,16 +172,17 @@ function pintar() {
   document.getElementById('pide').innerHTML = pide;
   // señales
   var sig = laborableSig(ultN), html = '';
-  [['S&amp;P 500 (fondo)', 'S&amp;P 500', r.Ss, r.oS, d.G[n - 1]], ['Nasdaq-100 (ETF)', 'Nasdaq-100', r.Sq, r.oQ, d.N[n - 1]]].forEach(function (x) {
+  [['S&amp;P 500 (fondo)', 'S&amp;P 500', r.Ss, r.oS, d.G[n - 1], 'SPY', d.SPY[n - 1]], ['Nasdaq-100 (ETF)', 'Nasdaq-100', r.Sq, r.oQ, d.N[n - 1], 'QQQ', d.Q[n - 1]]].forEach(function (x) {
     var S = x[2], o = x[3], ico, txt, col, cuando;
     if (o && o[0] == 'VENDER') { ico = '🔴'; txt = 'VENDER'; col = '#b00020'; cuando = cuandoTxt(sig) + ' Motivo: ' + o[1] + '.'; }
     else if (o && o[0] == 'COMPRAR') { ico = '🔵'; txt = 'COMPRAR'; col = '#1565c0'; cuando = cuandoTxt(sig) + ' Motivo: ' + o[1] + '.'; }
     else if (S.held == 1) { ico = '🟢'; txt = 'MANTENER'; col = '#0a7a2f'; cuando = 'No hagas nada.'; }
     else { ico = '⚪'; txt = 'ESPERAR FUERA'; col = '#666'; cuando = 'Sigue en liquidez.' + (S.out ? ' Fuera por el stop: vuelve con el comodín K5.' : ''); }
     var al = '';
-    if (S.held == 1 && !S.pe && !o && x[4]) {
-      var nivel = x[4] * (1 - TM.STOP) * S.pk / S.c;
-      al = '<div class="al">Alarma: si el <b>' + x[1] + '</b> cierra por debajo de <b>' + es(nivel) + '</b> puntos, vender (stop). Ahora está un ' + es(-S.dd, 1) + ' % por debajo de su máximo.</div>';
+    if (S.held == 1 && !S.pe && !o) {
+      var fac = (1 - TM.STOP) * S.pk / S.c;
+      al = '<div class="al"><b>Stop válido:</b> si el <b>' + x[5] + '</b> cierra por debajo de <b>' + es(x[6] * fac, 2) + '</b>, vender. Cierre: ' + es(x[6], 2) + ' (un ' + es(-S.dd, 1) + ' % por debajo de su máximo).' +
+        (x[4] ? '<br>Orientativo: ' + x[1] + ' por debajo de ' + es(x[4] * fac) + ' puntos (cierre ' + es(x[4]) + '). Si no coincide con el ' + x[5] + ', manda el ' + x[5] + '.' : '') + '</div>';
     }
     html += '<div class="caja" style="border-color:' + col + '"><div class="nom">' + x[0] + '</div><div class="ord" style="color:' + col + '">' + ico + ' ' + txt + '</div><div class="cu">' + cuando + '</div>' + al + '</div>';
   });
@@ -200,7 +210,9 @@ function pintar() {
     t += '<tr><td>' + fdia(p[0]) + '/' + p[0].slice(2, 4) + '</td><td class="v ' + (mio ? 'mio' : '') + '" onclick="corregir(\'' + p[0] + '\')">' + txt + '</td></tr>';
   });
   document.getElementById('lista').innerHTML = t + '</table>';
-  document.getElementById('pie').innerHTML = 'Revisión: el fin de semana, y entre semana solo en las fechas marcadas arriba o si el stop se acerca.<br>Estrategia agresiva (R2 o MOVE + entradas), stop 25 % y comodín K5: las reglas de TIMÓN.<br>Datos: PC (Yahoo) cuando abres TIMÓN en el PC; si no, FRED (S&amp;P 500, Nasdaq-100, tipo) y tus MOVE. Crédito: FRED.' + (e.actualizado ? '<br>Última lectura: ' + e.actualizado + '.' : '') + '<br>TIMÓN móvil 3.1';
+  var ctxt = '';
+  if (ctl && ctl.comprobado) { var mm = 0; for (var k2 in ctl.max_pct) if (ctl.max_pct[k2] != null && ctl.max_pct[k2] > mm) mm = ctl.max_pct[k2]; ctxt = '<br>Último control EODHD frente al PC: ' + ctl.comprobado.slice(8, 10) + '/' + ctl.comprobado.slice(5, 7) + ', ' + ctl.dias.length + ' día(s), diferencia máxima ' + es(mm, 3) + ' %.'; }
+  document.getElementById('pie').innerHTML = 'Revisión: el fin de semana, y entre semana solo en las fechas marcadas arriba o si el stop se acerca.<br>Estrategia agresiva (R2 o MOVE + entradas), stop 25 % y comodín K5: las reglas de TIMÓN. El stop se calcula con SPY y QQQ; los índices en puntos son orientativos.<br>Datos: PC (Yahoo) cuando abres TIMÓN en el PC; si no, EODHD (S&amp;P 500, Nasdaq-100, SPY, QQQ, MOVE), luego FRED, y tu MOVE si falta. Tipo y crédito: FRED.' + (e.actualizado ? '<br>Última lectura: ' + e.actualizado + '.' : '') + (e.eodhd_consultas_hoy != null ? ' Consultas EODHD hoy: ' + e.eodhd_consultas_hoy + ' de 20.' : '') + ctxt + '<br>TIMÓN móvil 3.2';
 }
 
 function previo(f) {
@@ -231,7 +243,7 @@ function guardarFaltan() {
 
 function corregir(f) {
   var m = mios(), p = BASE.filas.find(function (x) { return x[0] == f; });
-  if (p[4]) { alert('El MOVE del ' + fdia(f) + ' viene del PC (' + es(+p[4], 2) + ') y es el que manda. No se puede cambiar aquí.'); return; }
+  if (p[4]) { alert('El MOVE del ' + fdia(f) + ' viene ' + (p[7] == 'pc' ? 'del PC' : 'de EODHD') + ' (' + es(+p[4], 2) + ') y es el que manda. No se puede cambiar aquí.'); return; }
   var act = moveDe(p, m);
   var t = prompt('MOVE del ' + fdia(f) + (act != null ? ' (ahora ' + es(act, 2) + ')' : '') + '.\nEscribe la cifra correcta (x si no hay dato). Deja vacío y pulsa Aceptar para borrar tu dato.', act != null ? String(act).replace('.', ',') : '');
   if (t === null) return;
