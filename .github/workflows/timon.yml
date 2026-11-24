@@ -14,7 +14,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Datos del PC (Drive) y de FRED
+      - name: Datos del PC (Drive), EODHD y FRED
+        env:
+          EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
         run: python timon_movil.py
       - name: Guardar datos
         run: |
